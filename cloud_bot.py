@@ -9,8 +9,9 @@ from datetime import datetime, timezone, timedelta
 # Connect to exchange
 EXCHANGE = ccxt.binance({'enableRateLimit': True})
 
-# GitHub / Cloud Discord Webhook URL (Yahan apna cloud channel ka webhook dalein)
+# Your Cloud Discord Webhook URL
 WEBHOOK_URL = "https://discord.com/api/webhooks/1567090121688481893/nNCcIwVyBCS2ep7USOuEt5SolEjZ0sKnT41hIkAvqJbMWvEgUbSLac4v3ZAm1nFj-tni"
+
 # Top 50 High-Volume Altcoins Basket
 SYMBOLS = [
     'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT',
@@ -41,13 +42,23 @@ def send_discord_alert(message):
     except Exception as e:
         print(f"Error sending webhook: {e}")
 
-def clean_html(raw_text):
-    cleanr = re.compile('<.*?>')
-    return re.sub(cleanr, '', raw_text).strip()
+def fetch_crypto_news():
+    """Fetch latest crypto news headlines using feedparser"""
+    try:
+        feed = feedparser.parse('https://cointelegraph.com/rss')
+        news_list = []
+        for entry in feed.entries[:3]: # Top 3 recent news
+            title = entry.title
+            news_list.append(f"• {title}")
+        return "\n".join(news_list) if news_list else "• No recent news updates found."
+    except Exception as e:
+        return f"• Could not fetch news: {str(e)}"
 
 def scan_market():
     pkt_time_str = get_pakistan_time().strftime('%Y-%m-%d %H:%M:%S')
     print(f"\n🔍 Cloud Scan Executing Top 50 Altcoins at {pkt_time_str} PKT...")
+    
+    signals_found = 0
     
     for symbol in SYMBOLS:
         try:
@@ -76,6 +87,7 @@ def scan_market():
             is_macro_bearish = float(row['ema_50']) < float(row['ema_200'])
             
             if is_macro_bullish and (row['low'] <= row['swing_low']) and (row['close'] > prev_row['high'] and row['close'] > row['open']):
+                signals_found += 1
                 entry = row['close']
                 atr = row['atr']
                 sl = row['low'] - (0.5 * atr)
@@ -95,6 +107,7 @@ def scan_market():
                 continue
 
             if is_macro_bearish and (row['high'] >= row['swing_high']) and (row['close'] < prev_row['low'] and row['close'] < row['open']):
+                signals_found += 1
                 entry = row['close']
                 atr = row['atr']
                 sl = row['high'] + (0.5 * atr)
@@ -114,6 +127,20 @@ def scan_market():
 
         except Exception as e:
             continue
+
+    # Send a Heartbeat Status Report & News to Discord every run so you know it's working!
+    news_headlines = fetch_crypto_news()
+    status_msg = (
+        f"🤖 **Cloud Bot Status Report**\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+        f"• **Scan Time (PKT):** `{pkt_time_str}`\n"
+        f"• **Coins Scanned:** `{len(SYMBOLS)} Altcoins (15m)`\n"
+        f"• **Signals Triggered:** `{signals_found}`\n"
+        f"📰 **Latest Market News / Fundamentals:**\n"
+        f"{news_headlines}\n"
+        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+    )
+    send_discord_alert(status_msg)
 
 if __name__ == "__main__":
     print("🚀 GitHub Cloud Scan Started...")

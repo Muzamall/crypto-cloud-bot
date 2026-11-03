@@ -42,17 +42,43 @@ def send_discord_alert(message):
     except Exception as e:
         print(f"Error sending webhook: {e}")
 
-def fetch_crypto_news():
-    """Fetch latest crypto news headlines using feedparser"""
+def clean_html(raw_text):
+    cleanr = re.compile('<.*?>')
+    return re.sub(cleanr, '', raw_text).strip()
+
+def fetch_institutional_news():
+    """Fetch latest crypto news from CoinDesk RSS feed matching the institutional format"""
     try:
-        feed = feedparser.parse('https://cointelegraph.com/rss')
-        news_list = []
-        for entry in feed.entries[:3]: # Top 3 recent news
-            title = entry.title
-            news_list.append(f"• {title}")
-        return "\n".join(news_list) if news_list else "• No recent news updates found."
+        feed = feedparser.parse('https://www.coindesk.com/arc/outboundfeeds/rss/')
+        if not feed.entries:
+            return None
+        
+        entry = feed.entries[0] # Get the latest news item
+        title = entry.title
+        link = entry.link
+        
+        summary_raw = entry.get('summary', entry.get('description', 'No summary available.'))
+        summary = clean_html(summary_raw)
+        if len(summary) > 120:
+            summary = summary[:120] + "..."
+            
+        pkt_time_str = get_pakistan_time().strftime('%Y-%m-%d %H:%M:%S')
+        
+        news_msg = (
+            f"📊 **INSTITUTIONAL FUNDAMENTAL UPDATE**\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+            f"• **Headline:** `{title}`\n"
+            f"• **Market Sentiment:** ⚪ NEUTRAL / INFORMATIONAL\n"
+            f"• **Category:** 🪙 Bitcoin / Macro Asset\n"
+            f"• **Summary:** {summary}\n"
+            f"• **Time (PKT):** `{pkt_time_str}`\n"
+            f"• **Link:** {link}\n"
+            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+        )
+        return news_msg
     except Exception as e:
-        return f"• Could not fetch news: {str(e)}"
+        print(f"Error fetching news: {e}")
+        return None
 
 def scan_market():
     pkt_time_str = get_pakistan_time().strftime('%Y-%m-%d %H:%M:%S')
@@ -128,19 +154,10 @@ def scan_market():
         except Exception as e:
             continue
 
-    # Send a Heartbeat Status Report & News to Discord every run so you know it's working!
-    news_headlines = fetch_crypto_news()
-    status_msg = (
-        f"🤖 **Cloud Bot Status Report**\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-        f"• **Scan Time (PKT):** `{pkt_time_str}`\n"
-        f"• **Coins Scanned:** `{len(SYMBOLS)} Altcoins (15m)`\n"
-        f"• **Signals Triggered:** `{signals_found}`\n"
-        f"📰 **Latest Market News / Fundamentals:**\n"
-        f"{news_headlines}\n"
-        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-    )
-    send_discord_alert(status_msg)
+    # Send Institutional Fundamental News Update on every run
+    news_update = fetch_institutional_news()
+    if news_update:
+        send_discord_alert(news_update)
 
 if __name__ == "__main__":
     print("🚀 GitHub Cloud Scan Started...")

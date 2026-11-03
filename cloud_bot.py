@@ -1,6 +1,6 @@
 import ccxt
 import pandas as pd
-import pandas_ta as ta
+import ta
 import requests
 import feedparser
 import re

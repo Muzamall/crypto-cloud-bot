@@ -10,8 +10,7 @@ from datetime import datetime, timezone, timedelta
 EXCHANGE = ccxt.binance({'enableRateLimit': True})
 
 # GitHub / Cloud Discord Webhook URL (Yahan apna cloud channel ka webhook dalein)
-WEBHOOK_URL = "YOUR_GITHUB_DISCORD_WEBHOOK_URL_HERE"
-
+WEBHOOK_URL = "https://discord.com/api/webhooks/1567090121688481893/nNCcIwVyBCS2ep7USOuEt5SolEjZ0sKnT41hIkAvqJbMWvEgUbSLac4v3ZAm1nFj-tni"
 # Top 50 High-Volume Altcoins Basket
 SYMBOLS = [
     'BTC/USDT', 'ETH/USDT', 'SOL/USDT', 'XRP/USDT', 'ADA/USDT',

@@ -47,38 +47,51 @@ def clean_html(raw_text):
     return re.sub(cleanr, '', raw_text).strip()
 
 def fetch_institutional_news():
-    """Fetch latest crypto news from CoinDesk RSS feed matching the institutional format"""
-    try:
-        feed = feedparser.parse('https://www.coindesk.com/arc/outboundfeeds/rss/')
-        if not feed.entries:
-            return None
-        
-        entry = feed.entries[0] # Get the latest news item
-        title = entry.title
-        link = entry.link
-        
-        summary_raw = entry.get('summary', entry.get('description', 'No summary available.'))
-        summary = clean_html(summary_raw)
-        if len(summary) > 120:
-            summary = summary[:120] + "..."
+    """Fetch latest crypto news with browser user-agent headers to bypass cloud IP blocks"""
+    rss_urls = [
+        'https://www.coindesk.com/arc/outboundfeeds/rss/',
+        'https://cointelegraph.com/rss'
+    ]
+    
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36'
+    }
+
+    for url in rss_urls:
+        try:
+            # Fetch content with User-Agent header first
+            resp = requests.get(url, headers=headers, timeout=10)
+            if resp.status_code == 200:
+                feed = feedparser.parse(resp.content)
+                if feed.entries:
+                    entry = feed.entries[0]
+                    title = entry.title
+                    link = entry.link
+                    
+                    summary_raw = entry.get('summary', entry.get('description', 'No summary available.'))
+                    summary = clean_html(summary_raw)
+                    if len(summary) > 120:
+                        summary = summary[:120] + "..."
+                        
+                    pkt_time_str = get_pakistan_time().strftime('%Y-%m-%d %H:%M:%S')
+                    
+                    news_msg = (
+                        f"📊 **INSTITUTIONAL FUNDAMENTAL UPDATE**\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
+                        f"• **Headline:** `{title}`\n"
+                        f"• **Market Sentiment:** ⚪ NEUTRAL / INFORMATIONAL\n"
+                        f"• **Category:** 🪙 Bitcoin / Macro Asset\n"
+                        f"• **Summary:** {summary}\n"
+                        f"• **Time (PKT):** `{pkt_time_str}`\n"
+                        f"• **Link:** {link}\n"
+                        f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                    )
+                    return news_msg
+        except Exception as e:
+            print(f"Error fetching RSS from {url}: {e}")
+            continue
             
-        pkt_time_str = get_pakistan_time().strftime('%Y-%m-%d %H:%M:%S')
-        
-        news_msg = (
-            f"📊 **INSTITUTIONAL FUNDAMENTAL UPDATE**\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n"
-            f"• **Headline:** `{title}`\n"
-            f"• **Market Sentiment:** ⚪ NEUTRAL / INFORMATIONAL\n"
-            f"• **Category:** 🪙 Bitcoin / Macro Asset\n"
-            f"• **Summary:** {summary}\n"
-            f"• **Time (PKT):** `{pkt_time_str}`\n"
-            f"• **Link:** {link}\n"
-            f"━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-        )
-        return news_msg
-    except Exception as e:
-        print(f"Error fetching news: {e}")
-        return None
+    return None
 
 def scan_market():
     pkt_time_str = get_pakistan_time().strftime('%Y-%m-%d %H:%M:%S')
